@@ -1,0 +1,2 @@
+class ForumBlockedException(Exception):
+    pass
