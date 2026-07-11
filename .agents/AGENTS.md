@@ -31,3 +31,8 @@ Dự án phải tuân thủ nghiêm ngặt layout cấu trúc dưới đây. Age
 ## 5. Quy ước Git & Commit
 - **Branching:** Nhánh gốc là `main`, nhánh phát triển (development) là `dev`.
 - **Commit Message:** Tuân thủ chặt chẽ Semantic Commit Messages. Các tiền tố hợp lệ bao gồm: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `test:`, `style:`, `perf:`.
+- **Commit Frequency:** Thường xuyên commit từng các thay đổi có ý nghĩa, hạn chế git add . quá nhiều thay đổi.
+
+## 6. Quy ước về Kỹ năng (Skills) và Ghi chú (Logging)
+- **Sử dụng Skills:** Bắt buộc phải sử dụng chuyên sâu (intensively) 2 skill trong thư mục `skills/` (gồm `interactive-learning` và `knowledge-logging`). Trải nghiệm xây dựng app này là một quá trình học tập, do đó cần được hướng dẫn và log lại cẩn thận, chi tiết mọi thứ.
+- **Nhật ký phiên làm việc (Session Logging):** Mọi session làm việc bắt buộc phải được ghi chú (note) lại vào file `notes.md` ở thư mục gốc để theo dõi sát sao tiến độ và chi tiết những gì đã được xây dựng.
