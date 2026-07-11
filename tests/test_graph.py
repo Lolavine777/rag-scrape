@@ -18,12 +18,17 @@ def test_full_graph_execution_path_to_scraper(mocker):
     mock_generator_response.content = "Đã cào tin tức mới nhất từ Voz."
     mock_generator_llm.invoke.return_value = mock_generator_response
 
-    # Patch both LLM calls
+    # Patch both LLM calls and query_vector_db
     mock_chat = mocker.patch("src.graph.router.ChatGoogleGenerativeAI")
     mock_chat.return_value.with_structured_output.return_value = mock_router_llm
     
     mock_gen = mocker.patch("src.graph.generator.ChatGoogleGenerativeAI")
     mock_gen.return_value = mock_generator_llm
+
+    mocker.patch("src.graph.nodes.scraper_node.query_vector_db", return_value=[
+        {"content": "Dữ liệu cào từ Voz về Python 3.12: Tốc độ cải thiện 5-10%."}
+    ])
+
 
     # Compile the graph
     app = build_graph()
@@ -57,12 +62,17 @@ def test_full_graph_execution_path_to_rag(mocker):
     mock_generator_response.content = "Trả lời dựa trên CSDL RAG."
     mock_generator_llm.invoke.return_value = mock_generator_response
 
-    # Patch both LLM calls
+    # Patch both LLM calls and query_vector_db
     mock_chat = mocker.patch("src.graph.router.ChatGoogleGenerativeAI")
     mock_chat.return_value.with_structured_output.return_value = mock_router_llm
     
     mock_gen = mocker.patch("src.graph.generator.ChatGoogleGenerativeAI")
     mock_gen.return_value = mock_generator_llm
+
+    mocker.patch("src.graph.nodes.rag_node.query_vector_db", return_value=[
+        {"content": "Dữ liệu từ CSDL RAG về Python 3.12."}
+    ])
+
 
     # Compile the graph
     app = build_graph()
