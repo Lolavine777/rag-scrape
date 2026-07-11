@@ -14,20 +14,31 @@ _client: chromadb.ClientAPI | None = None
 def _get_client() -> chromadb.ClientAPI:
     """Lazy-initialize and return the ChromaDB client singleton.
 
-    Uses PersistentClient for local development - data survives
-    between process restarts. The persist directory is configurable
-    via CHROMA_PERSIST_DIRECTORY env var.
+    If chroma_server_host is set in settings, uses HttpClient to connect to a standalone server.
+    Otherwise, uses PersistentClient for local development.
     """
     global _client
     if _client is None:
-        _client = chromadb.PersistentClient(
-            path=settings.chroma_persist_directory,
-        )
-        logger.info(
-            "ChromaDB client initialized: %s",
-            settings.chroma_persist_directory,
-        )
+        if settings.chroma_server_host:
+            _client = chromadb.HttpClient(
+                host=settings.chroma_server_host,
+                port=settings.chroma_server_port,
+            )
+            logger.info(
+                "ChromaDB Standalone HttpClient initialized connecting to %s:%d",
+                settings.chroma_server_host,
+                settings.chroma_server_port,
+            )
+        else:
+            _client = chromadb.PersistentClient(
+                path=settings.chroma_persist_directory,
+            )
+            logger.info(
+                "ChromaDB PersistentClient initialized: %s",
+                settings.chroma_persist_directory,
+            )
     return _client
+
 
 
 def _get_collection() -> chromadb.Collection:

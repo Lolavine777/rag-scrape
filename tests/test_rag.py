@@ -1,7 +1,8 @@
 import pytest
 from unittest.mock import MagicMock
 
-from src.rag.core import upsert_document, query_vector_db, reset_collection
+from src.rag.core import upsert_document, query_vector_db, reset_collection, _get_client
+
 
 
 @pytest.fixture(autouse=True)
@@ -40,3 +41,38 @@ def test_upsert_document_prevents_duplicates():
     assert len(results) == 1
     assert results[0]["metadata"]["id"] == doc_id
     assert results[0]["content"] == "Updated content"
+
+
+def test_get_client_persistent(mocker):
+    # Mock chroma PersistentClient and HttpClient
+    mock_persist = mocker.patch("chromadb.PersistentClient")
+    mock_http = mocker.patch("chromadb.HttpClient")
+
+    # Reset core client cache
+    mocker.patch("src.rag.core._client", None)
+
+    mock_settings = mocker.patch("src.rag.core.settings")
+    mock_settings.chroma_server_host = None
+    mock_settings.chroma_persist_directory = "./test_persist_dir"
+
+    client = _get_client()
+
+    mock_persist.assert_called_once_with(path="./test_persist_dir")
+    mock_http.assert_not_called()
+
+
+def test_get_client_http(mocker):
+    mock_persist = mocker.patch("chromadb.PersistentClient")
+    mock_http = mocker.patch("chromadb.HttpClient")
+
+    mocker.patch("src.rag.core._client", None)
+
+    mock_settings = mocker.patch("src.rag.core.settings")
+    mock_settings.chroma_server_host = "test-host"
+    mock_settings.chroma_server_port = 8080
+
+    client = _get_client()
+
+    mock_http.assert_called_once_with(host="test-host", port=8080)
+    mock_persist.assert_not_called()
+

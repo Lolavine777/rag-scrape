@@ -1,6 +1,8 @@
 import logging
+from typing import Optional
 
 from pydantic_settings import BaseSettings
+
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +18,9 @@ class Settings(BaseSettings):
     # ChromaDB
     chroma_persist_directory: str = "./chroma_data"
     chroma_collection_name: str = "forum_documents"
+    chroma_server_host: Optional[str] = None
+    chroma_server_port: int = 8000
+
 
     # Gemini
     gemini_api_key: str = ""
