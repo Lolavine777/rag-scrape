@@ -4,14 +4,10 @@ import sys
 
 from src.graph.graph import build_graph
 from src.rag.core import reset_collection
+from src.log_config import setup_logging
 
-# Configure logging to write to stderr
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    stream=sys.stderr
-)
 logger = logging.getLogger(__name__)
+
 
 
 def main(args: list[str] = None) -> None:
@@ -26,6 +22,12 @@ def main(args: list[str] = None) -> None:
         action="store_true",
         help="Reset/clear the ChromaDB vector database collection"
     )
+    parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Enable verbose debug logging"
+    )
+
     
     # Subcommands
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
@@ -50,6 +52,10 @@ def main(args: list[str] = None) -> None:
     # Parse the arguments
     parsed_args = parser.parse_args(args)
     
+    # Initialize logging configuration based on verbose flag
+    setup_logging(verbose=parsed_args.verbose)
+
+    
     # Handle --reset-db
     if parsed_args.reset_db:
         logger.info("Resetting ChromaDB collection...")
@@ -72,7 +78,11 @@ def main(args: list[str] = None) -> None:
         }
         
         logger.info("Invoking graph execution pipeline...")
-        final_state = app.invoke(initial_state)
+        from src.observability import get_langfuse_callback
+        handler = get_langfuse_callback()
+        config = {"callbacks": [handler]} if handler else {}
+        final_state = app.invoke(initial_state, config=config)
+
         
         answer = final_state.get("answer") or "Could not generate an answer."
         print("\n=== ANSWER ===")
