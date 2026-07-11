@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.5-flash"
     gemini_embedding_model: str = "text-embedding-004"
 
+    # LangFuse
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_host: str = "https://cloud.langfuse.com"
+
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

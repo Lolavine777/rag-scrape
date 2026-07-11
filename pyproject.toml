@@ -10,10 +10,13 @@ dependencies = [
     "langchain-text-splitters>=0.2",
     "langgraph>=0.2",
     "langchain-google-genai>=2.1",
+    "langchain>=0.3",
+
     "scrapling[fetchers]>=0.2",
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
     "tenacity>=8.0",
+    "langfuse>=2.0",
 ]
 
 [project.optional-dependencies]
