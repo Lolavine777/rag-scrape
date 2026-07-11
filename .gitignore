@@ -24,9 +24,8 @@ coverage.xml
 .env.local
 .env.production
 
-# Milvus local data
-milvus_data/
-*.db
+# ChromaDB local data
+chroma_data/
 
 # IDE
 .vscode/

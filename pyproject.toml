@@ -5,7 +5,7 @@ description = "RAG + Scraping tool for Vietnamese forums"
 requires-python = ">=3.10"
 dependencies = [
     "beautifulsoup4>=4.12",
-    "pymilvus>=2.4",
+    "chromadb>=1.0",
     "langchain-core>=0.3",
     "langgraph>=0.2",
     "langchain-google-genai>=2.1",
