@@ -1,5 +1,6 @@
 import pytest
-from src.scraper.core import parse_forum_html, fetch_forum_page
+from unittest.mock import MagicMock
+from src.scraper.core import parse_forum_html, fetch_forum_page, fetch_voz_thread
 from src.scraper.exceptions import ForumBlockedException
 
 def test_parse_forum_html_filters_noise():
@@ -39,3 +40,32 @@ def test_parse_forum_html_adaptive_structure():
     """
     result = parse_forum_html(html_mock_changed)
     assert "valid content" in result
+
+
+def test_fetch_voz_thread_success(mocker):
+    mock_fetcher = mocker.patch("src.scraper.core.StealthyFetcher")
+    mock_response = MagicMock()
+    mock_response.status = 200
+    mock_response.text = "<html>Voz Thread</html>"
+    mock_fetcher.return_value.fetch.return_value = mock_response
+
+    html = fetch_voz_thread("https://voz.vn/t/some-thread.123/")
+    assert html == "<html>Voz Thread</html>"
+    mock_fetcher.return_value.fetch.assert_called_once_with(
+        "https://voz.vn/t/some-thread.123/", timeout=15000, solve_cloudflare=True
+    )
+
+
+def test_fetch_voz_thread_blocks(mocker):
+    mock_fetcher = mocker.patch("src.scraper.core.StealthyFetcher")
+    mock_response = MagicMock()
+    mock_response.status = 403
+    mock_response.text = "Cloudflare security check"
+    mock_fetcher.return_value.fetch.return_value = mock_response
+
+    # Patch wait to return 0 to make test run fast
+    mocker.patch("src.scraper.core.fetch_voz_thread.retry.wait", return_value=0)
+
+    with pytest.raises(ForumBlockedException):
+        fetch_voz_thread("https://voz.vn/t/some-thread.123/")
+

@@ -1,6 +1,7 @@
 import logging
-
 from bs4 import BeautifulSoup
+from tenacity import retry, stop_after_attempt, wait_exponential
+from scrapling import StealthyFetcher
 
 from .exceptions import ForumBlockedException
 
@@ -88,3 +89,33 @@ def parse_forum_html(html: str) -> str:
     result = "\n\n".join(content_parts)
     logger.info("Parsed HTML: extracted %d content blocks", len(content_parts))
     return result
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    reraise=True
+)
+def fetch_voz_thread(url: str) -> str:
+    """Fetch a Voz forum thread page using StealthyFetcher with retries."""
+    logger.info("Fetching Voz thread: %s", url)
+    try:
+        fetcher = StealthyFetcher()
+        # Solve cloudflare, set a 15-second timeout (15000 ms)
+        response = fetcher.fetch(url, timeout=15000, solve_cloudflare=True)
+        
+        # Check HTTP status code
+        if response.status != 200:
+            logger.warning("Fetched page returned status code %d", response.status)
+            
+        html = response.text
+        
+        # Check for Cloudflare block or Access Denied
+        if "Cloudflare" in html or "Access Denied" in html or response.status == 403:
+            raise ForumBlockedException(f"Blocked by Anti-bot (Status: {response.status})")
+            
+        return html
+    except Exception as e:
+        logger.error("Failed to fetch Voz thread %s: %s", url, e)
+        raise
+
