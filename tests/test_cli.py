@@ -57,3 +57,30 @@ def test_cli_ask_question_with_url(mocker):
     called_state = mock_app.invoke.call_args[0][0]
     assert called_state["question"] == "Review thớt"
     assert called_state["url"] == "https://voz.vn/t/123"
+
+
+def test_cli_search(mocker):
+    # Mock search_voz_threads to return a couple of threads
+    mock_search = mocker.patch("src.scraper.voz_search.search_voz_threads")
+
+    mock_search.return_value = [
+        {"title": "Thread 1", "url": "https://voz.vn/t/1"},
+        {"title": "Thread 2", "url": "https://voz.vn/t/2"}
+    ]
+    
+    # Mock the graph compilation and execution for auto-indexing
+    mock_app = MagicMock()
+    mock_build = mocker.patch("main.build_graph", return_value=mock_app)
+    
+    # Run CLI search command
+    main(args=["search", "python"])
+    
+    mock_search.assert_called_once_with("python")
+    mock_build.assert_called_once()
+    mock_app.invoke.assert_called_once()
+    
+    # Verify it auto-indexed the top thread URL
+    called_state = mock_app.invoke.call_args[0][0]
+    assert called_state["url"] == "https://voz.vn/t/1"
+    assert "Thread 1" in called_state["question"]
+

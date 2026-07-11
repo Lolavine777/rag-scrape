@@ -49,6 +49,18 @@ def main(args: list[str] = None) -> None:
         help="Direct URL of the Voz forum thread to scrape"
     )
     
+    # 'search' subcommand
+    search_parser = subparsers.add_parser(
+        "search",
+        help="Search for Voz forum threads by keyword"
+    )
+    search_parser.add_argument(
+        "keyword",
+        type=str,
+        help="The keyword to search for"
+    )
+
+    
     # Parse the arguments
     parsed_args = parser.parse_args(args)
     
@@ -89,6 +101,46 @@ def main(args: list[str] = None) -> None:
         print(answer)
         print("==============\n")
         return
+        
+    # Handle 'search' subcommand
+    if parsed_args.command == "search":
+        logger.info("Initiating Voz keyword search...")
+        from src.scraper.voz_search import search_voz_threads
+        
+        threads = search_voz_threads(parsed_args.keyword)
+        if not threads:
+            print(f"No threads found for keyword: '{parsed_args.keyword}'")
+            return
+            
+        print(f"\n=== SEARCH RESULTS FOR '{parsed_args.keyword}' ===")
+        for idx, thread in enumerate(threads, 1):
+            print(f"{idx}. {thread['title']}")
+            print(f"   URL: {thread['url']}")
+        print("=========================================\n")
+        
+        # Auto-index the top result
+        top_thread = threads[0]
+        print(f"Auto-indexing top thread: '{top_thread['title']}'...")
+        
+        app = build_graph()
+        initial_state = {
+            "question": f"Summarize thread: {top_thread['title']}",
+            "loop_count": 0,
+            "url": top_thread["url"],
+            "retrieved_context": None,
+            "answer": None,
+            "route_decision": None
+        }
+        
+        from src.observability import get_langfuse_callback
+        handler = get_langfuse_callback()
+        config = {"callbacks": [handler]} if handler else {}
+        
+        # Run graph to parse & index
+        app.invoke(initial_state, config=config)
+        print("Successfully scraped and indexed the thread into ChromaDB.")
+        return
+
         
     # If no arguments provided, show help
     parser.print_help()
