@@ -4,6 +4,7 @@ import logging
 import chromadb
 
 from src.config import settings
+from .embeddings import get_embedding
 
 logger = logging.getLogger(__name__)
 
@@ -62,34 +63,36 @@ def upsert_document(content: str, metadata: dict) -> None:
     with the same ID already exists, it gets updated (both the
     document text and metadata are replaced).
 
-    ChromaDB handles embedding automatically using its default
-    embedding function. Phase 3 can swap this for Gemini embeddings.
+    We explicitly generate the vector embedding using Gemini API
+    and pass it manually to ChromaDB.
     """
     collection = _get_collection()
     doc_id = metadata.get("id", "")
+    embedding = get_embedding(content)
 
     # ChromaDB stores metadata as flat key-value pairs.
     # We serialize the full metadata dict as a JSON string
     # to preserve nested structures.
     collection.upsert(
         ids=[doc_id],
+        embeddings=[embedding],
         documents=[content],
         metadatas=[{"id": doc_id, "raw": json.dumps(metadata)}],
     )
-    logger.info("Upserted document id=%s", doc_id)
+    logger.info("Upserted document id=%s with Gemini embedding", doc_id)
 
 
 def query_vector_db(query: str) -> list[dict]:
     """Query the vector store and return matching documents.
 
     Returns a list of dicts with 'content' and 'metadata' keys.
-    ChromaDB uses its default embedding function to embed the query
-    text and find similar documents.
+    We explicitly generate the query embedding vector using Gemini API.
     """
     collection = _get_collection()
+    embedding = get_embedding(query)
 
     results = collection.query(
-        query_texts=[query],
+        query_embeddings=[embedding],
         n_results=10,
     )
 

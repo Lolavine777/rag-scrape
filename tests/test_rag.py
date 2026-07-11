@@ -1,6 +1,16 @@
 import pytest
+from unittest.mock import MagicMock
 
 from src.rag.core import upsert_document, query_vector_db, reset_collection
+
+
+@pytest.fixture(autouse=True)
+def mock_embedding(mocker):
+    # Mock get_embedding helper inside RAG core module
+    mock_func = mocker.patch("src.rag.core.get_embedding")
+    # Return a deterministic mock vector
+    mock_func.side_effect = lambda text: [float(hash(text) % 1000) / 1000.0] * 768
+    return mock_func
 
 
 @pytest.fixture(autouse=True)
