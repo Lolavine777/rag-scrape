@@ -1,6 +1,6 @@
 # RAG-Scrape
 
-A production-grade Retrieval-Augmented Generation (RAG) and forum scraping pipeline orchestrated with LangGraph, designed to systematically extract valuable and hidden knowledge from community forums.
+A Retrieval-Augmented Generation (RAG) and forum scraping pipeline orchestrated with LangGraph, designed to systematically extract valuable and hidden knowledge from community forums.
 
 ---
 
