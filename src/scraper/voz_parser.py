@@ -51,9 +51,11 @@ def parse_voz_posts(html: str) -> list[dict]:
         if not content_elem:
             continue
             
-        # Clean up quotes (e.g. if one post quotes another, it contains blockquote elements)
-        # For simplicity, we can keep the text but we should clean up spacing
-        content = content_elem.get_text(strip=True)
+        # Drop quoted replies: the quoted text is already indexed with the post it came from
+        for quote in content_elem.select("blockquote"):
+            quote.decompose()
+        # A space separator keeps words on either side of <br> and inline tags apart
+        content = content_elem.get_text(" ", strip=True)
         
         # Skip short/spam posts (e.g. "Chấm", "Upp")
         if len(content) < MIN_CONTENT_LENGTH:

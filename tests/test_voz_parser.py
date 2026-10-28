@@ -118,3 +118,13 @@ def test_format_voz_thread():
     assert "cải tiến hiệu năng" in formatted_text
     assert "dev_pro" in formatted_text
     assert "Chấm" not in formatted_text  # Filtered
+
+
+def test_parse_voz_posts_drops_quotes_and_keeps_words_apart():
+    html = """<article class="message message--post" data-content="post-9"><span class="username">u</span>
+    <div class="bbWrapper"><blockquote class="bbCodeBlock bbCodeBlock--quote">Bài gốc được trích dẫn lại</blockquote>Dòng một<br>Dòng hai của câu trả lời</div></article>"""
+
+    post = parse_voz_posts(html)[0]
+
+    assert "trích dẫn" not in post["content"]
+    assert "Dòng một Dòng hai" in post["content"]
