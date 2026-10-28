@@ -1,6 +1,7 @@
 import argparse
 import logging
 import sys
+from pathlib import Path
 
 from src.graph.graph import build_graph
 from src.rag.core import reset_collection
@@ -46,18 +47,24 @@ def main(args: list[str] = None) -> None:
         "--url",
         type=str,
         default=None,
-        help="Direct URL of the Voz forum thread to scrape"
+        help="Thread URL to fetch, for forums that allow automated access"
     )
-    
-    # 'search' subcommand
-    search_parser = subparsers.add_parser(
-        "search",
-        help="Search for Voz forum threads by keyword"
+
+    # 'ingest' subcommand
+    ingest_parser = subparsers.add_parser(
+        "ingest",
+        help="Index a thread page saved from your browser"
     )
-    search_parser.add_argument(
-        "keyword",
+    ingest_parser.add_argument(
+        "file",
         type=str,
-        help="The keyword to search for"
+        help="Path to the saved thread HTML file"
+    )
+    ingest_parser.add_argument(
+        "--url",
+        type=str,
+        default=None,
+        help="Thread URL to store as the source (default: the page's canonical link)"
     )
 
     
@@ -102,43 +109,15 @@ def main(args: list[str] = None) -> None:
         print("==============\n")
         return
         
-    # Handle 'search' subcommand
-    if parsed_args.command == "search":
-        logger.info("Initiating Voz keyword search...")
-        from src.scraper.voz_search import search_voz_threads
-        
-        threads = search_voz_threads(parsed_args.keyword)
-        if not threads:
-            print(f"No threads found for keyword: '{parsed_args.keyword}'")
-            return
-            
-        print(f"\n=== SEARCH RESULTS FOR '{parsed_args.keyword}' ===")
-        for idx, thread in enumerate(threads, 1):
-            print(f"{idx}. {thread['title']}")
-            print(f"   URL: {thread['url']}")
-        print("=========================================\n")
-        
-        # Auto-index the top result
-        top_thread = threads[0]
-        print(f"Auto-indexing top thread: '{top_thread['title']}'...")
-        
-        app = build_graph()
-        initial_state = {
-            "question": f"Summarize thread: {top_thread['title']}",
-            "loop_count": 0,
-            "url": top_thread["url"],
-            "retrieved_context": None,
-            "answer": None,
-            "route_decision": None
-        }
-        
-        from src.observability import get_langfuse_callback
-        handler = get_langfuse_callback()
-        config = {"callbacks": [handler]} if handler else {}
-        
-        # Run graph to parse & index
-        app.invoke(initial_state, config=config)
-        print("Successfully scraped and indexed the thread into ChromaDB.")
+    # Handle 'ingest' subcommand
+    if parsed_args.command == "ingest":
+        from src.scraper.core import load_saved_thread
+        from src.graph.nodes.scraper_node import index_thread
+
+        html, canonical_url = load_saved_thread(parsed_args.file)
+        url = parsed_args.url or canonical_url or Path(parsed_args.file).resolve().as_uri()
+        text = index_thread(html, url)
+        print(f"Indexed {url} ({len(text)} characters) into ChromaDB.")
         return
 
         

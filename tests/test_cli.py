@@ -59,28 +59,24 @@ def test_cli_ask_question_with_url(mocker):
     assert called_state["url"] == "https://voz.vn/t/123"
 
 
-def test_cli_search(mocker):
-    # Mock search_voz_threads to return a couple of threads
-    mock_search = mocker.patch("src.scraper.voz_search.search_voz_threads")
+def test_cli_ingest_uses_canonical_url(mocker, tmp_path):
+    page = tmp_path / "thread.html"
+    page.write_text('<link rel="canonical" href="https://voz.vn/t/abc.1/"><p>post</p>', encoding="utf-8")
+    mock_index = mocker.patch("src.graph.nodes.scraper_node.index_thread", return_value="post")
 
-    mock_search.return_value = [
-        {"title": "Thread 1", "url": "https://voz.vn/t/1"},
-        {"title": "Thread 2", "url": "https://voz.vn/t/2"}
-    ]
-    
-    # Mock the graph compilation and execution for auto-indexing
-    mock_app = MagicMock()
-    mock_build = mocker.patch("main.build_graph", return_value=mock_app)
-    
-    # Run CLI search command
-    main(args=["search", "python"])
-    
-    mock_search.assert_called_once_with("python")
-    mock_build.assert_called_once()
-    mock_app.invoke.assert_called_once()
-    
-    # Verify it auto-indexed the top thread URL
-    called_state = mock_app.invoke.call_args[0][0]
-    assert called_state["url"] == "https://voz.vn/t/1"
-    assert "Thread 1" in called_state["question"]
+    main(args=["ingest", str(page)])
+
+    html, url = mock_index.call_args[0]
+    assert "<p>post</p>" in html
+    assert url == "https://voz.vn/t/abc.1/"
+
+
+def test_cli_ingest_url_flag_overrides_canonical(mocker, tmp_path):
+    page = tmp_path / "thread.html"
+    page.write_text("<p>no canonical link</p>", encoding="utf-8")
+    mock_index = mocker.patch("src.graph.nodes.scraper_node.index_thread", return_value="")
+
+    main(args=["ingest", str(page), "--url", "https://voz.vn/t/xyz.2/"])
+
+    assert mock_index.call_args[0][1] == "https://voz.vn/t/xyz.2/"
 

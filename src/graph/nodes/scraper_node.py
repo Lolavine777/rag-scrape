@@ -32,6 +32,17 @@ def get_url_id(url: str) -> str:
     # Fallback to md5 hash of url
     return f"url-{hashlib.md5(url.encode()).hexdigest()}"
 
+def index_thread(html: str, url: str) -> str:
+    """Parse a thread page, chunk it, upsert the chunks, and return the formatted text."""
+    formatted_text = format_voz_thread(html)
+    metadata = {"url": url, "id": get_url_id(url)}
+
+    chunks = chunk_document(formatted_text, metadata)
+    logger.info("Splitting thread into %d chunks for indexing.", len(chunks))
+    for chunk in chunks:
+        upsert_document(chunk["content"], chunk["metadata"])
+    return formatted_text
+
 def scraper_node(state: AgentState) -> dict:
     """Scrapes Voz thread from URL in state/question, chunks, indexes, and returns context.
     
@@ -47,18 +58,7 @@ def scraper_node(state: AgentState) -> dict:
         
     try:
         html = fetch_voz_thread(url)
-        formatted_text = format_voz_thread(html)
-        
-        # Save to database
-        doc_id = get_url_id(url)
-        metadata = {"url": url, "id": doc_id}
-        
-        chunks = chunk_document(formatted_text, metadata)
-        logger.info("Splitting thread into %d chunks for indexing.", len(chunks))
-        for chunk in chunks:
-            upsert_document(chunk["content"], chunk["metadata"])
-            
-        return {"retrieved_context": formatted_text}
+        return {"retrieved_context": index_thread(html, url)}
     except Exception as e:
         logger.error("Scraper node failed to scrape URL %s: %s. Falling back to database retrieval.", url, e)
         results = query_vector_db(state["question"])

@@ -38,10 +38,9 @@ The codebase strictly adheres to the following layout:
 │   │   ├── core.py          # ChromaDB persistent/server client connection
 │   │   └── embeddings.py    # Instantiates Gemini embeddings client
 │   ├── scraper/
-│   │   ├── core.py          # Fetch threads using Scrapling StealthyFetcher
-│   │   ├── exceptions.py    # Exception classes for Cloudflare blocking
-│   │   ├── voz_parser.py    # BeautifulSoup XenForo selector parser
-│   │   └── voz_search.py    # Google Search index bypass search scraper
+│   │   ├── core.py          # Polite HTTP fetch, robots.txt, rate limit, saved-page loader
+│   │   ├── exceptions.py    # Raised when a site refuses automated access
+│   │   └── voz_parser.py    # BeautifulSoup XenForo selector parser
 │   ├── config.py            # Pydantic settings management
 │   ├── log_config.py        # Structured JSON formatter and logging setup
 │   └── observability.py     # Lazy-loaded Langfuse tracing callback
@@ -63,11 +62,11 @@ Nodes return dictionary updates that the graph applies to the State.
 A conditional router bypasses the LLM classification entirely if a direct URL is supplied.
 This reduces Gemini API costs and execution latency.
 
-### Google-Bypass Search Scraper
-XenForo search endpoints are heavily rate-limited and return 403 Forbidden to guest users.
-To bypass this limitation, we scrape Google Search using the query `site:voz.vn {keyword}`.
-We use Scrapling `StealthyFetcher` to solve anti-bot challenges.
-The parsed HTML search links are resolved, cleaned of tracking parameters, and return a clean array of thread titles and URLs.
+### Polite Fetching
+Threads are fetched with plain HTTP, an honest User-Agent, a `robots.txt` check, and a 2-second per-host rate limit.
+Anti-bot challenges are never solved or bypassed: the fetch stops with `ForumBlockedException`.
+In that case the user saves the thread page from a browser and indexes it with `main.py ingest <file>`.
+There is no keyword search command; discovering threads is left to the user's browser.
 
 ### Dynamic Storage Swapping
 We support two modes of ChromaDB operation:

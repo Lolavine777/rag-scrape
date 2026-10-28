@@ -8,18 +8,18 @@ This document provides a handoff summary for developers or agents continuing wor
 
 * **Active Branch:** `main` (Fully up to date with remote repository).
 * **Git Status:** Clean (All features and documentation commits are completed).
-* **Local Test Suite:** 40/40 tests passing successfully in `10.39s` (Runs completely offline).
+* **Local Test Suite:** 44/44 tests passing (runs completely offline).
 * **GitHub Actions CI:** Fully operational (Fixed virtual environment dependency checks by using `uv sync`).
 
 ---
 
 ## 2. Component Reference
 
-* **CLI Command Entrypoint ([main.py](file:///d:/projects/personal_projects/scraping-tool/main.py)):** Exposes `ask`, `search`, and `--reset-db` commands.
-* **Vector DB Client ([core.py](file:///d:/projects/personal_projects/scraping-tool/src/rag/core.py)):** Instantiates either `PersistentClient` or `HttpClient` dynamically based on `settings.chroma_server_host`.
-* **Google-Bypass Search Scraper ([voz_search.py](file:///d:/projects/personal_projects/scraping-tool/src/scraper/voz_search.py)):** Performs google queries with `StealthyFetcher` and cleans Google redirects.
-* **Observability singleton ([observability.py](file:///d:/projects/personal_projects/scraping-tool/src/observability.py)):** Caches and exposes the Langfuse callback client handler.
-* **Structured Logger ([log_config.py](file:///d:/projects/personal_projects/scraping-tool/src/log_config.py)):** Manages JSON log formatting and mutes noisy third-party loggers.
+* **CLI Command Entrypoint ([main.py](../main.py)):** Exposes `ask`, `ingest`, and `--reset-db` commands.
+* **Vector DB Client ([core.py](../src/rag/core.py)):** Instantiates either `PersistentClient` or `HttpClient` dynamically based on `settings.chroma_server_host`.
+* **Polite Fetcher ([core.py](../src/scraper/core.py)):** Plain HTTP with robots.txt and a per-host rate limit; never bypasses anti-bot challenges.
+* **Observability singleton ([observability.py](../src/observability.py)):** Caches and exposes the Langfuse callback client handler.
+* **Structured Logger ([log_config.py](../src/log_config.py)):** Manages JSON log formatting and mutes noisy third-party loggers.
 
 ---
 
@@ -29,16 +29,11 @@ If you are tasked to extend this repository, consider implementing the following
 
 ### Feature 1: Multi-Page Thread Scraping
 Extend the scraping node to traverse multi-page XenForo threads.
-Add `current_page` and `max_pages` fields to `AgentState` in [state.py](file:///d:/projects/personal_projects/scraping-tool/src/graph/state.py).
+Add `current_page` and `max_pages` fields to `AgentState` in [state.py](../src/graph/state.py).
 Update `scraper_node` to parse nextPage links from XenForo pagination HTML elements (`.pageNav-jump--next`).
-Create a conditional edge loop in [graph.py](file:///d:/projects/personal_projects/scraping-tool/src/graph/graph.py) that loops back to `scraper_node` until all pages are retrieved.
+Create a conditional edge loop in [graph.py](../src/graph/graph.py) that loops back to `scraper_node` until all pages are retrieved.
 
-### Feature 2: XenForo User Authentication Session Support
-Add login capabilities to bypass potential login-restricted threads.
-Create a config parameter `voz_username` and `voz_password` in [config.py](file:///d:/projects/personal_projects/scraping-tool/src/config.py).
-Implement a login POST request in `src/scraper/core.py` to extract XenForo session cookies and pass them into the `StealthyFetcher` headers.
-
-### Feature 3: LLM Rate-limiting (429) fallback
+### Feature 2: LLM Rate-limiting (429) fallback
 Implement a try-except fallback in `generator_node`.
 If the Gemini API throws a quota exception, catch it, log a warning, and output the raw database chunks retrieved from ChromaDB instead of crashing.
 
