@@ -11,6 +11,9 @@ def parse_voz_thread_title(html: str) -> str:
     # XenForo title selectors
     title_elem = soup.select_one("h1.p-title-value") or soup.select_one("div.p-title")
     if title_elem:
+        # Drop thread prefix labels such as "thảo luận" that XenForo renders inside the title
+        for label in title_elem.select(".label, .label-append"):
+            label.decompose()
         return title_elem.get_text(strip=True)
     return "Unknown Thread Title"
 

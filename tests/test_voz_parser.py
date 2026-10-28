@@ -92,6 +92,11 @@ def test_parse_voz_thread_title():
     title = parse_voz_thread_title(MOCK_VOZ_HTML)
     assert title == "Thảo luận về Python 3.12"
 
+
+def test_parse_voz_thread_title_drops_prefix_label():
+    html = '<h1 class="p-title-value"><span class="label label--primary">thảo luận</span><span class="label-append"> </span>Hành trình tự học Python</h1>'
+    assert parse_voz_thread_title(html) == "Hành trình tự học Python"
+
 def test_parse_voz_posts():
     posts = parse_voz_posts(MOCK_VOZ_HTML)
     assert len(posts) == 2  # The short "Chấm" post (length < 10) should be filtered out
