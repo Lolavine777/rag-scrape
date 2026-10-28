@@ -93,7 +93,8 @@ def main(args: list[str] = None) -> None:
             "url": parsed_args.url,
             "retrieved_context": None,
             "answer": None,
-            "route_decision": None
+            "route_decision": None,
+            "sources": None
         }
         
         logger.info("Invoking graph execution pipeline...")
@@ -116,8 +117,8 @@ def main(args: list[str] = None) -> None:
 
         html, canonical_url = load_saved_thread(parsed_args.file)
         url = parsed_args.url or canonical_url or Path(parsed_args.file).resolve().as_uri()
-        text = index_thread(html, url)
-        print(f"Indexed {url} ({len(text)} characters) into ChromaDB.")
+        chunks = index_thread(html, url)
+        print(f"Indexed {url} ({len(chunks)} chunks) into ChromaDB.")
         return
 
         

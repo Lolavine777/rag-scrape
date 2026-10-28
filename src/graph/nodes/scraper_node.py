@@ -2,10 +2,10 @@ import logging
 import re
 import hashlib
 from src.graph.state import AgentState
-from src.scraper.core import fetch_voz_thread
-from src.scraper.voz_parser import format_voz_thread
-from src.rag.chunker import chunk_document
-from src.rag.core import upsert_document, query_vector_db
+from src.scraper.core import fetch_voz_thread, parse_forum_html
+from src.scraper.voz_parser import parse_voz_thread_title, parse_voz_posts
+from src.rag.chunker import chunk_document, chunk_posts
+from src.rag.core import build_context, upsert_document, query_vector_db
 
 logger = logging.getLogger(__name__)
 
@@ -32,35 +32,33 @@ def get_url_id(url: str) -> str:
     # Fallback to md5 hash of url
     return f"url-{hashlib.md5(url.encode()).hexdigest()}"
 
-def index_thread(html: str, url: str) -> str:
-    """Parse a thread page, chunk it, upsert the chunks, and return the formatted text."""
-    formatted_text = format_voz_thread(html)
-    metadata = {"url": url, "id": get_url_id(url)}
+def index_thread(html: str, url: str) -> list[dict]:
+    """Parse a thread page into per-post chunks, upsert them, and return the chunks."""
+    doc_id = get_url_id(url)
+    title = parse_voz_thread_title(html)
+    chunks = chunk_posts(title, parse_voz_posts(html), url, doc_id)
+    if not chunks:  # not a XenForo thread: index the page's main text instead
+        chunks = chunk_document(parse_forum_html(html), {"url": url, "id": doc_id, "title": title})
 
-    chunks = chunk_document(formatted_text, metadata)
-    logger.info("Splitting thread into %d chunks for indexing.", len(chunks))
+    logger.info("Indexing thread as %d chunks.", len(chunks))
     for chunk in chunks:
         upsert_document(chunk["content"], chunk["metadata"])
-    return formatted_text
+    return chunks
 
 def scraper_node(state: AgentState) -> dict:
-    """Scrapes Voz thread from URL in state/question, chunks, indexes, and returns context.
-    
+    """Scrapes Voz thread from URL in state/question, chunks, indexes, and returns numbered context.
+
     If no URL is found or if scraping fails, falls back to RAG database retrieval.
     """
     url = state.get("url") or extract_url_from_text(state["question"])
-    
+
     if not url:
         logger.warning("No URL found in state or question. Falling back to local database retrieval.")
-        results = query_vector_db(state["question"])
-        context = "\n\n".join([r["content"] for r in results])
-        return {"retrieved_context": context}
-        
+        return build_context(query_vector_db(state["question"]))
+
     try:
         html = fetch_voz_thread(url)
-        return {"retrieved_context": index_thread(html, url)}
+        return build_context(index_thread(html, url))
     except Exception as e:
         logger.error("Scraper node failed to scrape URL %s: %s. Falling back to database retrieval.", url, e)
-        results = query_vector_db(state["question"])
-        context = "\n\n".join([r["content"] for r in results])
-        return {"retrieved_context": context}
+        return build_context(query_vector_db(state["question"]))

@@ -26,7 +26,7 @@ def test_e2e_scraping_and_answering(mocker):
     # 2. Mock Generator LLM to return answer
     mock_generator_llm = MagicMock()
     mock_response = MagicMock()
-    mock_response.content = "Dựa trên bài viết, Python 3.12 cải thiện hiệu năng 5-10%."
+    mock_response.content = "Dựa trên bài viết, Python 3.12 cải thiện hiệu năng 5-10% [1]."
     mock_generator_llm.invoke.return_value = mock_response
     mock_chat_generator = mocker.patch("src.graph.generator.ChatGoogleGenerativeAI")
     mock_chat_generator.return_value = mock_generator_llm
@@ -70,6 +70,8 @@ def test_e2e_scraping_and_answering(mocker):
     
     # Final answer is populated correctly
     assert final_state["route_decision"] == "scraper_node"
-    assert "Thread Title: Python 3.12 Performance" in final_state["retrieved_context"]
-    assert "Hiệu năng cải thiện khoảng" in final_state["retrieved_context"]
-    assert final_state["answer"] == "Dựa trên bài viết, Python 3.12 cải thiện hiệu năng 5-10%."
+    assert "Python 3.12 Performance\nAdmin: Hiệu năng cải thiện khoảng" in final_state["retrieved_context"]
+    assert final_state["answer"] == (
+        "Dựa trên bài viết, Python 3.12 cải thiện hiệu năng 5-10% [1]."
+        "\n\nNguồn:\n[1] https://voz.vn/t/python-3-12.111/#post-111 (Admin, 2023-11-14)"
+    )

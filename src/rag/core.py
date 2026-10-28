@@ -121,3 +121,19 @@ def query_vector_db(query: str) -> list[dict]:
 
     logger.info("Vector query returned %d results", len(documents))
     return documents
+
+
+def build_context(docs: list[dict]) -> dict:
+    """Number chunks as sources [1], [2], ... so the answer can cite them.
+
+    Returns the state update: the numbered context text and the matching source list.
+    """
+    parts: list[str] = []
+    sources: list[dict] = []
+    for n, doc in enumerate(docs, 1):
+        meta = doc.get("metadata", {})
+        source = {key: meta.get(key, "") for key in ("url", "author", "timestamp")}
+        sources.append(source)
+        byline = ", ".join(v for v in (source["author"], source["timestamp"]) if v)
+        parts.append(f"[{n}] {byline}\n{doc['content']}" if byline else f"[{n}]\n{doc['content']}")
+    return {"retrieved_context": "\n\n".join(parts), "sources": sources}

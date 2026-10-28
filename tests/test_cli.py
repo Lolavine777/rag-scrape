@@ -62,7 +62,7 @@ def test_cli_ask_question_with_url(mocker):
 def test_cli_ingest_uses_canonical_url(mocker, tmp_path):
     page = tmp_path / "thread.html"
     page.write_text('<link rel="canonical" href="https://voz.vn/t/abc.1/"><p>post</p>', encoding="utf-8")
-    mock_index = mocker.patch("src.graph.nodes.scraper_node.index_thread", return_value="post")
+    mock_index = mocker.patch("src.graph.nodes.scraper_node.index_thread", return_value=[{"content": "post"}])
 
     main(args=["ingest", str(page)])
 
@@ -74,7 +74,7 @@ def test_cli_ingest_uses_canonical_url(mocker, tmp_path):
 def test_cli_ingest_url_flag_overrides_canonical(mocker, tmp_path):
     page = tmp_path / "thread.html"
     page.write_text("<p>no canonical link</p>", encoding="utf-8")
-    mock_index = mocker.patch("src.graph.nodes.scraper_node.index_thread", return_value="")
+    mock_index = mocker.patch("src.graph.nodes.scraper_node.index_thread", return_value=[])
 
     main(args=["ingest", str(page), "--url", "https://voz.vn/t/xyz.2/"])
 

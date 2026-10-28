@@ -4,78 +4,63 @@ from src.graph.state import AgentState
 from src.graph.nodes.scraper_node import scraper_node
 from src.graph.nodes.rag_node import rag_node
 
+THREAD_HTML = """
+<h1 class="p-title-value">Python 101</h1>
+<article class="message message--post" data-content="post-1">
+    <span class="username">Admin</span>
+    <time class="u-dt" datetime="2026-07-01T10:00:00+0700">Jul 1</time>
+    <div class="bbWrapper">Hello World, đây là bài viết đầu tiên.</div>
+</article>
+"""
+
+
+def make_state(question, url=None):
+    return AgentState(question=question, loop_count=0, url=url, retrieved_context=None,
+                      answer=None, route_decision="scraper_node", sources=None)
+
+
 def test_scraper_node_with_url(mocker):
-    # Mock network fetching and parsing
-    mock_fetch = mocker.patch("src.graph.nodes.scraper_node.fetch_voz_thread", return_value="<html>Mock Thread</html>")
-    mock_parse = mocker.patch("src.graph.nodes.scraper_node.format_voz_thread", return_value="Thread Title: Python 101\nAdmin: Hello World")
-    
-    # Mock chunking and database upserting
-    mock_chunk = mocker.patch("src.graph.nodes.scraper_node.chunk_document", return_value=[
-        {"content": "Chunk 1", "metadata": {"url": "https://voz.vn/t/123", "id": "t123-chunk-0", "chunk_index": 0}}
-    ])
+    mock_fetch = mocker.patch("src.graph.nodes.scraper_node.fetch_voz_thread", return_value=THREAD_HTML)
     mock_upsert = mocker.patch("src.graph.nodes.scraper_node.upsert_document")
-    
-    state = AgentState(
-        question="Python 101",
-        loop_count=0,
-        url="https://voz.vn/t/123",
-        retrieved_context=None,
-        answer=None,
-        route_decision="scraper_node"
-    )
-    
-    result = scraper_node(state)
-    
-    # Verify mock invocations
+
+    result = scraper_node(make_state("Python 101", url="https://voz.vn/t/123"))
+
     mock_fetch.assert_called_once_with("https://voz.vn/t/123")
-    mock_parse.assert_called_once_with("<html>Mock Thread</html>")
-    mock_chunk.assert_called_once()
     mock_upsert.assert_called_once()
-    
-    assert "Thread Title: Python 101" in result["retrieved_context"]
-    assert "Admin: Hello World" in result["retrieved_context"]
+    assert result["retrieved_context"].startswith("[1] Admin, 2026-07-01T10:00:00+0700\nPython 101\nAdmin: Hello World")
+    assert result["sources"] == [
+        {"url": "https://voz.vn/t/123#post-1", "author": "Admin", "timestamp": "2026-07-01T10:00:00+0700"}
+    ]
 
 def test_scraper_node_extract_url_from_question(mocker):
-    mock_fetch = mocker.patch("src.graph.nodes.scraper_node.fetch_voz_thread", return_value="<html>Mock</html>")
-    mock_parse = mocker.patch("src.graph.nodes.scraper_node.format_voz_thread", return_value="Thread Content")
-    mock_chunk = mocker.patch("src.graph.nodes.scraper_node.chunk_document", return_value=[])
-    mock_upsert = mocker.patch("src.graph.nodes.scraper_node.upsert_document")
-    
-    # The URL is embedded inside the question text
-    state = AgentState(
-        question="Đọc thớt này nhé https://voz.vn/t/thread-moi.98765/page-2",
-        loop_count=0,
-        url=None,
-        retrieved_context=None,
-        answer=None,
-        route_decision="scraper_node"
-    )
-    
-    result = scraper_node(state)
-    
+    mock_fetch = mocker.patch("src.graph.nodes.scraper_node.fetch_voz_thread", return_value=THREAD_HTML)
+    mocker.patch("src.graph.nodes.scraper_node.upsert_document")
+
+    result = scraper_node(make_state("Đọc thớt này nhé https://voz.vn/t/thread-moi.98765/page-2"))
+
     mock_fetch.assert_called_once_with("https://voz.vn/t/thread-moi.98765/page-2")
-    assert result["retrieved_context"] == "Thread Content"
+    assert "Hello World" in result["retrieved_context"]
+
+def test_scraper_node_indexes_non_xenforo_pages_as_plain_text(mocker):
+    page = "<html><body><article>Một trang diễn đàn khác, không có cấu trúc bài viết XenForo.</article></body></html>"
+    mocker.patch("src.graph.nodes.scraper_node.fetch_voz_thread", return_value=page)
+    mock_upsert = mocker.patch("src.graph.nodes.scraper_node.upsert_document")
+
+    result = scraper_node(make_state("Tóm tắt", url="https://forum.example/t/1"))
+
+    mock_upsert.assert_called_once()
+    assert "không có cấu trúc bài viết XenForo" in result["retrieved_context"]
+    assert result["sources"][0]["url"] == "https://forum.example/t/1"
 
 def test_scraper_node_no_url_fallback_to_rag(mocker):
-    # Mock RAG query database
     mock_query_db = mocker.patch("src.graph.nodes.scraper_node.query_vector_db", return_value=[
         {"content": "Dữ liệu lịch sử về Python", "metadata": {"id": "doc1"}}
     ])
-    
-    # State has no URL
-    state = AgentState(
-        question="Python 3.12 có gì mới?",
-        loop_count=0,
-        url=None,
-        retrieved_context=None,
-        answer=None,
-        route_decision="scraper_node"
-    )
-    
-    result = scraper_node(state)
-    
+
+    result = scraper_node(make_state("Python 3.12 có gì mới?"))
+
     mock_query_db.assert_called_once_with("Python 3.12 có gì mới?")
-    assert result["retrieved_context"] == "Dữ liệu lịch sử về Python"
+    assert result["retrieved_context"] == "[1]\nDữ liệu lịch sử về Python"
 
 def test_rag_node(mocker):
     # Mock RAG database query
@@ -96,5 +81,6 @@ def test_rag_node(mocker):
     result = rag_node(state)
     
     mock_query_db.assert_called_once_with("Học Python?")
-    assert "Chunk A từ DB" in result["retrieved_context"]
-    assert "Chunk B từ DB" in result["retrieved_context"]
+    assert "[1]\nChunk A từ DB" in result["retrieved_context"]
+    assert "[2]\nChunk B từ DB" in result["retrieved_context"]
+    assert len(result["sources"]) == 2

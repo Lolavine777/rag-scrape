@@ -7,3 +7,4 @@ class AgentState(TypedDict):
     retrieved_context: Optional[str]
     answer: Optional[str]
     route_decision: Optional[str]
+    sources: Optional[list[dict]]

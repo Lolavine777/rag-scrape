@@ -31,7 +31,7 @@ graph TD
     RAG --> Query[Query ChromaDB]
     Query --> Gen
     Gen --> Gemini[Gemini LLM Synthesis]
-    Gemini --> Answer[Output Answer]
+    Gemini --> Answer[Answer with cited sources]
 ```
 
 ### Key Technical Decisions
@@ -40,6 +40,9 @@ graph TD
 * **Polite Fetching, No Bypassing:** Plain HTTP with an honest User-Agent, a `robots.txt` check, and a 2-second per-host rate limit; only network and server errors are retried.
   If a site answers with an anti-bot challenge, the tool stops instead of solving it, and you can save the page from your browser and `ingest` it.
   Voz's `robots.txt` content signals allow reference use and forbid AI training; this tool only indexes threads locally to answer questions and trains nothing.
+* **Per-Post Chunks with Citations:** Each forum post is indexed on its own with its author, time, and permalink; quoted replies are dropped so the same text is not indexed twice.
+  The answer cites the numbered context as `[1]`, `[2]`, and the source list under it is built from stored metadata, so links cannot be invented by the model.
+  Forum text is passed to the model as data, with an explicit instruction to ignore any requests inside it.
 * **Structured Logging & Tracing:** Outputs logs as single-line JSON (`LOG_FORMAT=json`) in production, with dependency log levels optimized, and integrates full execution tracing via Langfuse.
 
 ---
