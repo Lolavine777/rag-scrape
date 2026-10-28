@@ -28,7 +28,7 @@ graph TD
     Fetch --> Index[Chunking & Upsert to ChromaDB]
     Main -- ingest saved page --> Index
     Index --> Gen[generator_node]
-    RAG --> Query[Query ChromaDB]
+    RAG --> Query[Hybrid search: vector + BM25]
     Query --> Gen
     Gen --> Gemini[Gemini LLM Synthesis]
     Gemini --> Answer[Answer with cited sources]
@@ -43,6 +43,8 @@ graph TD
 * **Per-Post Chunks with Citations:** Each forum post is indexed on its own with its author, time, and permalink; quoted replies are dropped so the same text is not indexed twice.
   The answer cites the numbered context as `[1]`, `[2]`, and the source list under it is built from stored metadata, so links cannot be invented by the model.
   Forum text is passed to the model as data, with an explicit instruction to ignore any requests inside it.
+* **Hybrid Retrieval:** Vector search finds paraphrases, and a standard-library BM25 finds exact names, numbers, and slang that embeddings blur; the two rankings are merged with reciprocal rank fusion.
+  Keyword matching folds Vietnamese diacritics, so "hoc python" finds "Học Python", and adds syllable bigrams in place of word segmentation.
 * **Structured Logging & Tracing:** Outputs logs as single-line JSON (`LOG_FORMAT=json`) in production, with dependency log levels optimized, and integrates full execution tracing via Langfuse.
 
 ---

@@ -76,3 +76,19 @@ def test_get_client_http(mocker):
     mock_http.assert_called_once_with(host="test-host", port=8080)
     mock_persist.assert_not_called()
 
+
+
+def test_search_fuses_keyword_hits_with_vector_hits():
+    from src.rag.core import search
+    for i, text in enumerate([
+        "Học Python ở đâu cho người mới",
+        "Mình dùng Kubernetes để deploy app",
+        "Giá xe máy tháng này tăng",
+    ]):
+        upsert_document(text, {"id": f"doc-{i}", "url": f"https://voz.vn/t/x.{i}/"})
+
+    results = search("kubernetes deploy")
+
+    assert results[0]["metadata"]["id"] == "doc-1"  # only doc in both rankings
+    assert len(results) == 3  # vector search still returns the rest
+    assert len({r["metadata"]["id"] for r in results}) == 3  # no duplicates after fusion

@@ -4,6 +4,7 @@ import logging
 import chromadb
 
 from src.config import settings
+from .bm25 import bm25_scores
 from .embeddings import get_embedding
 
 logger = logging.getLogger(__name__)
@@ -93,7 +94,7 @@ def upsert_document(content: str, metadata: dict) -> None:
     logger.info("Upserted document id=%s with Gemini embedding", doc_id)
 
 
-def query_vector_db(query: str) -> list[dict]:
+def query_vector_db(query: str, n_results: int = 10) -> list[dict]:
     """Query the vector store and return matching documents.
 
     Returns a list of dicts with 'content' and 'metadata' keys.
@@ -104,7 +105,7 @@ def query_vector_db(query: str) -> list[dict]:
 
     results = collection.query(
         query_embeddings=[embedding],
-        n_results=10,
+        n_results=n_results,
     )
 
     documents = []
@@ -137,3 +138,36 @@ def build_context(docs: list[dict]) -> dict:
         byline = ", ".join(v for v in (source["author"], source["timestamp"]) if v)
         parts.append(f"[{n}] {byline}\n{doc['content']}" if byline else f"[{n}]\n{doc['content']}")
     return {"retrieved_context": "\n\n".join(parts), "sources": sources}
+
+
+RRF_K = 60  # standard reciprocal rank fusion constant; damps the weight of top ranks
+
+
+def search(query: str, n_results: int = 10) -> list[dict]:
+    """Hybrid retrieval: fuse vector and BM25 keyword rankings with reciprocal rank fusion.
+
+    Vector search finds paraphrases; BM25 finds exact names, numbers and slang that embeddings blur.
+    """
+    vector_hits = query_vector_db(query, n_results)
+
+    # shortcut: BM25 rescans the whole collection per query; fine for a personal forum index,
+    # build a persistent keyword index if it grows past roughly 100k chunks
+    stored = _get_collection().get(include=["documents", "metadatas"])
+    docs = [
+        {"content": doc, "metadata": json.loads(meta.get("raw", "{}"))}
+        for doc, meta in zip(stored["documents"], stored["metadatas"])
+    ]
+    scores = bm25_scores(query, [d["content"] for d in docs])
+    keyword_hits = [d for score, d in sorted(zip(scores, docs), key=lambda p: -p[0]) if score > 0][:n_results]
+
+    fused: dict[str, float] = {}
+    by_key: dict[str, dict] = {}
+    for hits in (vector_hits, keyword_hits):
+        for rank, doc in enumerate(hits, 1):
+            key = doc["metadata"].get("id") or doc["content"]
+            fused[key] = fused.get(key, 0.0) + 1.0 / (RRF_K + rank)
+            by_key.setdefault(key, doc)
+
+    ranked = sorted(fused, key=fused.get, reverse=True)[:n_results]
+    logger.info("Hybrid search: %d vector, %d keyword, %d fused", len(vector_hits), len(keyword_hits), len(ranked))
+    return [by_key[key] for key in ranked]

@@ -34,8 +34,9 @@ The codebase strictly adheres to the following layout:
 │   │   ├── schemas.py            # Pydantic schemas for structured LLM outputs
 │   │   └── state.py              # LangGraph TypedDict State declaration
 │   ├── rag/
-│   │   ├── chunker.py       # Segment text using character text splitter
-│   │   ├── core.py          # ChromaDB persistent/server client connection
+│   │   ├── bm25.py          # Standard-library BM25 with Vietnamese diacritic folding
+│   │   ├── chunker.py       # Per-post chunks; character splitter for long posts
+│   │   ├── core.py          # ChromaDB client, upsert, hybrid search, numbered context
 │   │   └── embeddings.py    # Instantiates Gemini embeddings client
 │   ├── scraper/
 │   │   ├── core.py          # Polite HTTP fetch, robots.txt, rate limit, saved-page loader

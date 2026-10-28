@@ -53,7 +53,7 @@ def test_scraper_node_indexes_non_xenforo_pages_as_plain_text(mocker):
     assert result["sources"][0]["url"] == "https://forum.example/t/1"
 
 def test_scraper_node_no_url_fallback_to_rag(mocker):
-    mock_query_db = mocker.patch("src.graph.nodes.scraper_node.query_vector_db", return_value=[
+    mock_query_db = mocker.patch("src.graph.nodes.scraper_node.search", return_value=[
         {"content": "Dữ liệu lịch sử về Python", "metadata": {"id": "doc1"}}
     ])
 
@@ -64,7 +64,7 @@ def test_scraper_node_no_url_fallback_to_rag(mocker):
 
 def test_rag_node(mocker):
     # Mock RAG database query
-    mock_query_db = mocker.patch("src.graph.nodes.rag_node.query_vector_db", return_value=[
+    mock_query_db = mocker.patch("src.graph.nodes.rag_node.search", return_value=[
         {"content": "Chunk A từ DB", "metadata": {"id": "1"}},
         {"content": "Chunk B từ DB", "metadata": {"id": "2"}}
     ])

@@ -5,7 +5,7 @@ from src.graph.state import AgentState
 from src.scraper.core import fetch_voz_thread, parse_forum_html
 from src.scraper.voz_parser import parse_voz_thread_title, parse_voz_posts
 from src.rag.chunker import chunk_document, chunk_posts
-from src.rag.core import build_context, upsert_document, query_vector_db
+from src.rag.core import build_context, search, upsert_document
 
 logger = logging.getLogger(__name__)
 
@@ -54,11 +54,11 @@ def scraper_node(state: AgentState) -> dict:
 
     if not url:
         logger.warning("No URL found in state or question. Falling back to local database retrieval.")
-        return build_context(query_vector_db(state["question"]))
+        return build_context(search(state["question"]))
 
     try:
         html = fetch_voz_thread(url)
         return build_context(index_thread(html, url))
     except Exception as e:
         logger.error("Scraper node failed to scrape URL %s: %s. Falling back to database retrieval.", url, e)
-        return build_context(query_vector_db(state["question"]))
+        return build_context(search(state["question"]))
